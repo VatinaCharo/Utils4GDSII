@@ -1,2 +1,2 @@
 # Utils4GDSII
-utils for drawing qubit chip gds
+**utils for drawing qubit chip gds**
