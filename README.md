@@ -8,9 +8,9 @@ The GDSII file is called a library in gdspy, which contains multiple cells.
 
 Geometry must be placed in cells. So the object you got from utils.py must be added in a cell.
 
-To save the library in a file called 'xxx.gds', you can use `write_gds`
-function. Optionally, you can save an image of the cell as SVG by using
-`write_gds` function. Also you can display all cells using the internal viewer
+To save the **library** in a file called 'xxx.gds', you can use `write_gds`
+function. Optionally, you can save an image of the **cell** as SVG by using
+`write_svg` function. Also, you can display all cells using the internal viewer
 `gdspy.LayoutViewer`.
 
 ## Demo
@@ -31,6 +31,7 @@ lib.new_cell("TWO")\
     .add(get_squid(Direction.UP, 10, anchor=(0, 50), xy_distance=(20, 20)))\
     .add(get_squid(Direction.DOWN, 20, anchor=(50, 50)))\
     .add(get_squid(Direction.DOWN, 20, anchor=(50, 0), xy_distance=(20, 20)))
+lib.write_gds("demo.gds")
 gdspy.LayoutViewer(lib)
 ```
 
