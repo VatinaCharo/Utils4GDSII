@@ -73,6 +73,7 @@ def get_readout_resonator(
             # qubit端的耦合接口
             path.turn(5.0 * center_width, "r")
             path.segment(qubit_end_length)
+    print("=== Building readout resonator ===")
     print("length: %.2fum" % path.length)
     print("preset length: %.2fum" % length)
     print("Δl: %.2fum" % (length - path.length))
@@ -83,8 +84,9 @@ def get_readout_resonator(
 def get_squid(
         direction: Direction,
         base_length: float,
-        squid_size: tuple[float, float] = (0.15, 0.15),
         anchor: tuple[float, float] = (0, 0),
+        squid_size: tuple[float, float] = (0.15, 0.15),
+        squid_pad_size: tuple[float, float] = (6, 8),
         xy_distance: tuple[float, float] = (18, 9),
         base_layer: int = 1,
         squid_layer: int = 2
@@ -93,9 +95,10 @@ def get_squid(
 绘制带底部连接“钩子”的SQUID
     :param direction: 蒸镀方向
     :param base_length: “钩子”的长度
-    :param squid_size: SQUID的结面积参数
     :param anchor: 定位点
-    :param xy_distance: SQUID的间距
+    :param squid_size: SQUID的结面积参数
+    :param squid_pad_size: SQUID的pad大小
+    :param xy_distance: SQUID的pad偏移量
     :param base_layer: SQUID的底部“钩子”所处的图层
     :param squid_layer: SQUID所处的图层
     :return: 带“钩子”SQUID的Polygon对象列表
@@ -103,23 +106,30 @@ def get_squid(
     if direction not in [Direction.UP, Direction.DOWN]:
         warnings.warn("Invalid direction %s, reset to %s" % (direction, Direction.UP))
         direction = Direction.UP
-    if base_length < 5.0:
-        warnings.warn("Base length is too short (less than 6.0um), may cause some problems!")
-    if xy_distance[0] < 12.0 or xy_distance[1] < 6.0:
-        warnings.warn("The pads of JJs are too closed (%.2f, %.2f), under (12.0, 6.0)" % xy_distance)
-        print("Resetting to default distance (18.0, 9.0)")
-        xy_distance = (18, 9)
+    if squid_pad_size[0] < 4.0 or squid_pad_size[1] < 2.0:
+        warnings.warn("The pads of JJs are too small, which may cause some problems!")
+        print("Resetting to default size (%.2f, %.2f)" % (6, 8))
+    if base_length < squid_pad_size[1]:
+        warn_str = "Base length is too short (less than %.2fum), which may cause some problems!" % squid_pad_size[1]
+        warnings.warn(warn_str)
+    if xy_distance[0] < 2.0 * squid_pad_size[0] or xy_distance[1] < squid_pad_size[1]:
+        warn_str = "The pads of JJs are too closed (%.2f, %.2f), " % xy_distance + "under (%.2f, %.2f)" % squid_pad_size
+        warnings.warn(warn_str)
+        print("Resetting to default distance (%.2f, %.2f)" % (3.0 * squid_pad_size[0], squid_pad_size[1]))
+        xy_distance = (3.0 * squid_pad_size[0], squid_pad_size[1])
+    dx, dy = xy_distance
+    px, py = squid_pad_size
     squid_with_base_list = []
     # 绘制SQUID
     squid_pad_list = [
-        gdspy.Rectangle((0, 0), (6, 6), layer=squid_layer),
-        gdspy.Rectangle((0, 0), (6, 6), layer=squid_layer),
-        gdspy.Rectangle((0, 0), (6, 6), layer=squid_layer)
+        gdspy.Rectangle((0, 0), squid_pad_size, layer=squid_layer),
+        gdspy.Rectangle((0, 0), squid_pad_size, layer=squid_layer),
+        gdspy.Rectangle((0, 0), squid_pad_size, layer=squid_layer)
     ]
-    squid_pad_list[1].translate(xy_distance[0], 0)
-    squid_pad_list[2].translate(0.5 * xy_distance[0], xy_distance[1])
-    squid_v_line_length = xy_distance[1] - 4
-    squid_h_line_length = 0.5 * xy_distance[0] - 4
+    squid_pad_list[1].translate(dx, 0)
+    squid_pad_list[2].translate(0.5 * dx, dy)
+    squid_v_line_length = dy - py + 2
+    squid_h_line_length = 0.5 * dx - px + 2
     squid_v_line_list = [
         gdspy.Rectangle((0, 0), (squid_size[0], squid_v_line_length), layer=squid_layer),
         gdspy.Rectangle((0, 0), (squid_size[0], squid_v_line_length), layer=squid_layer)
@@ -129,15 +139,15 @@ def get_squid(
         gdspy.Rectangle((0, 0), (squid_h_line_length, squid_size[1]), layer=squid_layer)
     ]
     if direction == Direction.UP:
-        squid_v_line_list[0].translate(5 - squid_size[0], 6)
-        squid_v_line_list[1].translate(xy_distance[0] + 1, 6)
-        squid_h_line_list[0].translate(4, xy_distance[1] + 1)
-        squid_h_line_list[1].translate(0.5 * xy_distance[0] + 6, xy_distance[1] + 1)
+        squid_v_line_list[0].translate(px - 1 - squid_size[0], py)
+        squid_v_line_list[1].translate(dx + 1, py)
+        squid_h_line_list[0].translate(px - 2, dy + 1)
+        squid_h_line_list[1].translate(0.5 * dx + px, dy + 1)
     elif direction == Direction.DOWN:
-        squid_v_line_list[0].translate(0.5 * xy_distance[0] + 1, 4)
-        squid_v_line_list[1].translate(0.5 * xy_distance[0] + 5 - squid_size[0], 4)
-        squid_h_line_list[0].translate(6, 5 - squid_size[1])
-        squid_h_line_list[1].translate(0.5 * xy_distance[0] + 4, 5 - squid_size[1])
+        squid_v_line_list[0].translate(0.5 * dx + 1, py - 2)
+        squid_v_line_list[1].translate(0.5 * dx + px - 1 - squid_size[0], py - 2)
+        squid_h_line_list[0].translate(px, py - 1 - squid_size[1])
+        squid_h_line_list[1].translate(0.5 * dx + px - 2, py - 1 - squid_size[1])
     squid_with_base_list += squid_pad_list + squid_v_line_list + squid_h_line_list
     # 绘制底部的钩子
     base_list = [
@@ -148,9 +158,9 @@ def get_squid(
                         2.0 - 2.0j,
                         0.0 - 2.0j
                     )] * 3
-    base_list = [gdspy.Polygon(base.get_points(), layer=base_layer).translate(1, 5) for base in base_list]
-    base_list[1].mirror((0.5 * xy_distance[0] + 3, 0), (0.5 * xy_distance[0] + 3, 1))
-    base_list[2].rotate(np.pi, center=(0.25 * xy_distance[0] + 3, 0.5 * xy_distance[1] + 3))
+    base_list = [gdspy.Polygon(base.get_points(), layer=base_layer).translate(1, py - 1) for base in base_list]
+    base_list[1].mirror((0.5 * (dx + px), 0), (0.5 * (dx + px), 1))
+    base_list[2].rotate(np.pi, center=(0.25 * dx + 0.5 * px, 0.5 * (dy + py)))
 
     squid_with_base_list += base_list
     for poly in squid_with_base_list:
