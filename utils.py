@@ -75,8 +75,10 @@ def get_readout_resonator(
             path.segment(qubit_end_length)
     print("=== Building readout resonator ===")
     print("length: %.2fum" % path.length)
-    print("preset length: %.2fum" % length)
-    print("Δl: %.2fum" % (length - path.length))
+    # print("preset length: %.2fum" % length)
+    # print("Δl: %.2fum" % (length - path.length))
+    print("coupled length: %.2fum" % couple_end_length)
+    print("center = %.2fum, gap = %.2fum" % (center_width, gap))
     path.layers = [layer for _ in path.layers]
     return path
 
@@ -166,8 +168,8 @@ def get_squid(
     for poly in squid_with_base_list:
         poly.translate(anchor[0], anchor[1])
     print("=== Building SQUID with base ===")
-    print("Direction: ", direction)
-    print("Base line length: %.2fum" % base_length)
+    print("Direction: ", direction.name)
+    print("base line length: %.2fum" % base_length)
     print("SQUID JJs size: (%.2fum, %.2fum)" % squid_size)
     print("SQUID pad size: (%.2fum, %.2fum)" % squid_pad_size)
     print("dx = %.2fum, dy = %.2fum" % xy_distance)
@@ -176,6 +178,7 @@ def get_squid(
 
 
 if __name__ == '__main__':
+    # demo and test
     lib = gdspy.GdsLibrary()
     lib.new_cell("ONE").add([
         get_readout_resonator(4911, 10, 5, anchor=(-500, 0)),
