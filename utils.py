@@ -165,6 +165,13 @@ def get_squid(
     squid_with_base_list += base_list
     for poly in squid_with_base_list:
         poly.translate(anchor[0], anchor[1])
+    print("=== Building SQUID with base ===")
+    print("Direction: ", direction)
+    print("Base line length: %.2fum" % base_length)
+    print("SQUID JJs size: (%.2fum, %.2fum)" % squid_size)
+    print("SQUID pad size: (%.2fum, %.2fum)" % squid_pad_size)
+    print("dx = %.2fum, dy = %.2fum" % xy_distance)
+    print("Layer: SQUID = %d/0, Base = %d/0" % (squid_layer, base_layer))
     return squid_with_base_list
 
 
