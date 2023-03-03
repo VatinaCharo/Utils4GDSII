@@ -12,17 +12,15 @@ class Direction(Enum):
     RIGHT = 3
 
 
-def get_readout_resonator(
-        length: float,
-        center_width: float,
-        gap: float,
-        anchor: tuple[float, float] = (0, 0),
-        layer: int = 1,
-        couple_end_length: float = 300.0,
-        unit_length: float = 200.0,
-        qubit_end_length: float = 300.0,
-        max_s_unit_count: int = 100
-) -> gdspy.Path:
+def get_readout_resonator(length: float,
+                          center_width: float,
+                          gap: float,
+                          anchor: tuple[float, float] = (0, 0),
+                          layer: int = 1,
+                          couple_end_length: float = 300.0,
+                          unit_length: float = 200.0,
+                          qubit_end_length: float = 300.0,
+                          max_s_unit_count: int = 100) -> gdspy.Path:
     """
 绘制读取腔
     :param length: 读取腔的长度
@@ -83,16 +81,14 @@ def get_readout_resonator(
     return path
 
 
-def get_squid(
-        direction: Direction,
-        base_length: float,
-        anchor: tuple[float, float] = (0, 0),
-        squid_size: tuple[float, float] = (0.15, 0.15),
-        squid_pad_size: tuple[float, float] = (6, 8),
-        xy_distance: tuple[float, float] = (18, 9),
-        base_layer: int = 1,
-        squid_layer: int = 2
-) -> list[gdspy.Polygon]:
+def get_squid(direction: Direction,
+              base_length: float,
+              anchor: tuple[float, float] = (0, 0),
+              squid_size: tuple[float, float] = (0.15, 0.15),
+              squid_pad_size: tuple[float, float] = (6, 8),
+              xy_distance: tuple[float, float] = (18, 9),
+              base_layer: int = 1,
+              squid_layer: int = 2) -> list[gdspy.Polygon]:
     """
 绘制带底部连接“钩子”的SQUID
     :param direction: 蒸镀方向
@@ -152,14 +148,8 @@ def get_squid(
         squid_h_line_list[1].translate(0.5 * dx + px - 2, py - 1 - squid_size[1])
     squid_with_base_list += squid_pad_list + squid_v_line_list + squid_h_line_list
     # 绘制底部的钩子
-    base_list = [
-                    gdspy.Curve(0, 0).l(
-                        4.0 + 0.0j,
-                        4.0 - base_length * 1.0j,
-                        2.0 - base_length * 1.0j,
-                        2.0 - 2.0j,
-                        0.0 - 2.0j
-                    )] * 3
+    base_list = [gdspy.Curve(0, 0).l(4.0 + 0.0j, 4.0 - base_length * 1.0j, 2.0 - base_length * 1.0j, 2.0 - 2.0j, 0.0 - 2.0j)
+                 ] * 3
     base_list = [gdspy.Polygon(base.get_points(), layer=base_layer).translate(1, py - 1) for base in base_list]
     base_list[1].mirror((0.5 * (dx + px), 0), (0.5 * (dx + px), 1))
     base_list[2].rotate(np.pi, center=(0.25 * dx + 0.5 * px, 0.5 * (dy + py)))
@@ -177,18 +167,110 @@ def get_squid(
     return squid_with_base_list
 
 
+def get_hex_qubit(r: float,
+                  s: float,
+                  gr: float,
+                  gs: float,
+                  d: float,
+                  wp: float,
+                  lp: float,
+                  wg: float,
+                  lg: float,
+                  gg: float,
+                  layer: int = 1) -> gdspy.Polygon:
+    """get_hex_qubit 绘制六边形 qubit 版图
+
+    Args:
+        r (float): 六边形边至中心的距离
+        s (float): 切角处的切边长度
+        gr (float): pad 与 qubit 之间的间隔
+        gs (float): pad 与 切角处之间的间隔
+        d (float): pad 长度
+        wp (float): pad 尾部矩形宽度
+        lp (float): pad 尾部矩形长度
+        wg (float): 切角处 ground 矩形宽度
+        lg (float): 切角处 ground 矩形长度
+        gg (float): 切角处 ground 与切角处之间的间隔
+        layer (int, optional): hex qubit的图层 Defaults to 1.
+
+    Returns:
+        gdspy.Polygon: hex qubit 版图
+    """
+    gds_list = []
+    r_point = (r - s) / np.sqrt(3) + r * 1.0j
+    s_point = (r + s / 2) / np.sqrt(3) + (r - s / 2) * 1.0j
+    qubit_points = np.array([np.array([r_point, s_point]) * np.exp(-n * 1.0j * np.pi / 3) for n in range(6)]).flatten()
+    qubit_points = [(p.real, p.imag) for p in qubit_points]
+    hex_qubit = gdspy.Polygon(points=qubit_points, layer=layer)
+    # points_j = [r_point, s_point]
+    # for i in range(1, 6):
+    #     points_j += [points_j[-2] * np.exp(-1.0j * np.pi / 3), points_j[-1] * np.exp(-1.0j * np.pi / 3)]
+    # points = []
+    # for p in points_j:
+    #     points.append((p.real, p.imag))
+    # hex_qubit = gdspy.Polygon(points=points, layer=layer)
+    gds_list.append(hex_qubit)
+    # 绘制 pad
+    pad_anchor = (r + gr - 2 * gs - s) / np.sqrt(3) + (r + gr) * 1.0j
+    l_u = d / np.sqrt(3) + d * 1.0j
+    r_u = -(d + 2 * (r + gr - 2 * gs - s)) / np.sqrt(3) + d * 1.0j
+    r_d = -2 * (r + gr - 2 * gs - s) / np.sqrt(3) + 0.0j
+    pad_curve = gdspy.Curve(pad_anchor).l(l_u, r_u, r_d)
+    pad_list = [
+        gdspy.Polygon(pad_curve.get_points(), layer=layer),
+        gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(np.pi / 3),
+        gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(2 * np.pi / 3),
+        gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(np.pi),
+        gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(4 * np.pi / 3),
+        gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(5 * np.pi / 3)
+    ]
+    p_r_u = (-wp / 2, r + gr + d + lp)
+    p_l_d = (wp / 2, r + gr + d)
+    pad_list += [
+        gdspy.Rectangle(p_r_u, p_l_d, layer=layer),
+        gdspy.Rectangle(p_r_u, p_l_d, layer=layer).rotate(np.pi / 3),
+        gdspy.Rectangle(p_r_u, p_l_d, layer=layer).rotate(2 * np.pi / 3),
+        gdspy.Rectangle(p_r_u, p_l_d, layer=layer).rotate(np.pi),
+        gdspy.Rectangle(p_r_u, p_l_d, layer=layer).rotate(4 * np.pi / 3),
+        gdspy.Rectangle(p_r_u, p_l_d, layer=layer).rotate(5 * np.pi / 3)
+    ]
+    edge_p1 = -wp / 2 + (r + gr + d + lp) * 1.0j
+    edge_p2 = edge_p1 + wp
+    edge_points = np.array([np.array([edge_p1, edge_p2]) * np.exp(-n * 1.0j * np.pi / 3) for n in range(6)]).flatten()
+    edge_points = [(p.real, p.imag) for p in edge_points]
+    gds = gdspy.Polygon(edge_points, layer=layer)
+    gds_list += pad_list
+    g_anchor = (0, np.sqrt((r - s / 4)**2 / 3 + (r - s / 4)**2))
+    g_p1 = (g_anchor[0] - wg / 2, g_anchor[1] + gg + lg)
+    g_p2 = (g_anchor[0] + wg / 2, g_anchor[1] + gg)
+    ground_list = [
+        gdspy.Rectangle(g_p1, g_p2, layer=layer).rotate(np.pi / 6),
+        gdspy.Rectangle(g_p1, g_p2, layer=layer).rotate(np.pi / 2),
+        gdspy.Rectangle(g_p1, g_p2, layer=layer).rotate(5 * np.pi / 6),
+        gdspy.Rectangle(g_p1, g_p2, layer=layer).rotate(7 * np.pi / 6),
+        gdspy.Rectangle(g_p1, g_p2, layer=layer).rotate(3 * np.pi / 2),
+        gdspy.Rectangle(g_p1, g_p2, layer=layer).rotate(11 * np.pi / 6)
+    ]
+    gds_list += ground_list
+    for g in gds_list:
+        gds = gdspy.boolean(gds, g, "not")
+    gds.layers = [1]
+    return gds
+
+
 if __name__ == '__main__':
     # demo and test
     lib = gdspy.GdsLibrary()
-    lib.new_cell("ONE").add([
-        get_readout_resonator(4911, 10, 5, anchor=(-500, 0)),
-        get_readout_resonator(4875, 10, 5, anchor=(0, 0)),
-        get_readout_resonator(4840, 10, 5, anchor=(500, 0)),
-        get_readout_resonator(4805, 10, 5, anchor=(1000, 0))
-    ])
-    lib.new_cell("TWO") \
-        .add(get_squid(Direction.UP, 10)) \
-        .add(get_squid(Direction.UP, 10, anchor=(0, 50), xy_distance=(20, 20))) \
-        .add(get_squid(Direction.DOWN, 20, anchor=(50, 50))) \
-        .add(get_squid(Direction.DOWN, 20, anchor=(50, 0), xy_distance=(20, 20)))
+    # lib.new_cell("ONE").add([
+    #     get_readout_resonator(4911, 10, 5, anchor=(-500, 0)),
+    #     get_readout_resonator(4875, 10, 5, anchor=(0, 0)),
+    #     get_readout_resonator(4840, 10, 5, anchor=(500, 0)),
+    #     get_readout_resonator(4805, 10, 5, anchor=(1000, 0))
+    # ])
+    # lib.new_cell("TWO") \
+    #     .add(get_squid(Direction.UP, 10)) \
+    #     .add(get_squid(Direction.UP, 10, anchor=(0, 50), xy_distance=(20, 20))) \
+    #     .add(get_squid(Direction.DOWN, 20, anchor=(50, 50))) \
+    #     .add(get_squid(Direction.DOWN, 20, anchor=(50, 0), xy_distance=(20, 20)))
+    lib.new_cell("THREE").add(get_hex_qubit(4, 1, 0.5, 0.5, 2, 2, 4, 1, 5, 0.5))
     gdspy.LayoutViewer(lib)
