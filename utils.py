@@ -261,16 +261,16 @@ def get_hex_qubit(r: float,
 if __name__ == '__main__':
     # demo and test
     lib = gdspy.GdsLibrary()
-    # lib.new_cell("ONE").add([
-    #     get_readout_resonator(4911, 10, 5, anchor=(-500, 0)),
-    #     get_readout_resonator(4875, 10, 5, anchor=(0, 0)),
-    #     get_readout_resonator(4840, 10, 5, anchor=(500, 0)),
-    #     get_readout_resonator(4805, 10, 5, anchor=(1000, 0))
-    # ])
-    # lib.new_cell("TWO") \
-    #     .add(get_squid(Direction.UP, 10)) \
-    #     .add(get_squid(Direction.UP, 10, anchor=(0, 50), xy_distance=(20, 20))) \
-    #     .add(get_squid(Direction.DOWN, 20, anchor=(50, 50))) \
-    #     .add(get_squid(Direction.DOWN, 20, anchor=(50, 0), xy_distance=(20, 20)))
+    lib.new_cell("ONE").add([
+        get_readout_resonator(4911, 10, 5, anchor=(-500, 0)),
+        get_readout_resonator(4875, 10, 5, anchor=(0, 0)),
+        get_readout_resonator(4840, 10, 5, anchor=(500, 0)),
+        get_readout_resonator(4805, 10, 5, anchor=(1000, 0))
+    ])
+    lib.new_cell("TWO") \
+        .add(get_squid(Direction.UP, 10)) \
+        .add(get_squid(Direction.UP, 10, anchor=(0, 50), xy_distance=(20, 20))) \
+        .add(get_squid(Direction.DOWN, 20, anchor=(50, 50))) \
+        .add(get_squid(Direction.DOWN, 20, anchor=(50, 0), xy_distance=(20, 20)))
     lib.new_cell("THREE").add(get_hex_qubit(4, 1, 0.5, 0.5, 2, 2, 4, 1, 5, 0.5))
     gdspy.LayoutViewer(lib)
