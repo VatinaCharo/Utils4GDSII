@@ -177,7 +177,9 @@ def get_hex_qubit(r: float,
                   wg: float,
                   lg: float,
                   gg: float,
-                  layer: int = 1) -> gdspy.Polygon:
+                  anchor: tuple[float, float] = (0, 0),
+                  layer: int = 1,
+                  inverse: bool = False) -> list[gdspy.Polygon]:
     """get_hex_qubit 绘制六边形 qubit 版图
 
     Args:
@@ -192,23 +194,18 @@ def get_hex_qubit(r: float,
         lg (float): 切角处 ground 矩形长度
         gg (float): 切角处 ground 与切角处之间的间隔
         layer (int, optional): hex qubit的图层 Defaults to 1.
+        inverse (bool, optional): 版图文件反相 Defaults to False.
 
     Returns:
-        gdspy.Polygon: hex qubit 版图
+        list[gdspy.Polygon]: hex qubit 版图
     """
     gds_list = []
+    # 绘制中心导体
     r_point = (r - s) / np.sqrt(3) + r * 1.0j
     s_point = (r + s / 2) / np.sqrt(3) + (r - s / 2) * 1.0j
     qubit_points = np.array([np.array([r_point, s_point]) * np.exp(-n * 1.0j * np.pi / 3) for n in range(6)]).flatten()
     qubit_points = [(p.real, p.imag) for p in qubit_points]
     hex_qubit = gdspy.Polygon(points=qubit_points, layer=layer)
-    # points_j = [r_point, s_point]
-    # for i in range(1, 6):
-    #     points_j += [points_j[-2] * np.exp(-1.0j * np.pi / 3), points_j[-1] * np.exp(-1.0j * np.pi / 3)]
-    # points = []
-    # for p in points_j:
-    #     points.append((p.real, p.imag))
-    # hex_qubit = gdspy.Polygon(points=points, layer=layer)
     gds_list.append(hex_qubit)
     # 绘制 pad
     pad_anchor = (r + gr - 2 * gs - s) / np.sqrt(3) + (r + gr) * 1.0j
@@ -252,10 +249,15 @@ def get_hex_qubit(r: float,
         gdspy.Rectangle(g_p1, g_p2, layer=layer).rotate(11 * np.pi / 6)
     ]
     gds_list += ground_list
+    # 生成反相版图
     for g in gds_list:
         gds = gdspy.boolean(gds, g, "not")
     gds.layers = [1]
-    return gds
+    # 版图整体偏移
+    gds.translate(anchor[0], anchor[1])
+    for i in range(len(gds_list)):
+        gds_list[i] = gds_list[i].translate(anchor[0], anchor[1])
+    return gds_list if inverse else [gds]
 
 
 if __name__ == '__main__':
@@ -272,5 +274,7 @@ if __name__ == '__main__':
         .add(get_squid(Direction.UP, 10, anchor=(0, 50), xy_distance=(20, 20))) \
         .add(get_squid(Direction.DOWN, 20, anchor=(50, 50))) \
         .add(get_squid(Direction.DOWN, 20, anchor=(50, 0), xy_distance=(20, 20)))
-    lib.new_cell("THREE").add(get_hex_qubit(4, 1, 0.5, 0.5, 2, 2, 4, 1, 5, 0.5))
+    lib.new_cell("THREE")\
+        .add(get_hex_qubit(4, 1, 0.5, 0.5, 2, 2, 4, 1, 5, 0.5))\
+        .add(get_hex_qubit(4, 1, 0.5, 0.5, 2, 2, 4, 1, 5, 0.5,anchor=(30,0),inverse=True))
     gdspy.LayoutViewer(lib)
