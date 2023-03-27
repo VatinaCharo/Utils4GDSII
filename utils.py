@@ -1,8 +1,9 @@
 import warnings
-from enum import Enum
-
-import gdspy
 import numpy as np
+import gdspy
+import os
+from enum import Enum
+from PIL import Image
 
 
 class Direction(Enum):
@@ -35,8 +36,12 @@ def get_readout_resonator(length: float,
     :return: 读取腔的Path对象
     """
     # 提前减去qubit端的传输线接口长度
-    length_without_qubit_end = length - (qubit_end_length + 2.5 * center_width * np.pi)
-    path = gdspy.Path(gap, initial_point=anchor, number_of_paths=2, distance=center_width + gap)
+    length_without_qubit_end = length - (qubit_end_length +
+                                         2.5 * center_width * np.pi)
+    path = gdspy.Path(gap,
+                      initial_point=anchor,
+                      number_of_paths=2,
+                      distance=center_width + gap)
     path.segment(couple_end_length)
     # ‘S’ unit, length = 2.0 * 5.0 * center_width * np.pi + 2.0 * unit_length
     #                                 ===
@@ -50,18 +55,24 @@ def get_readout_resonator(length: float,
     #             ======================
     s_unit_length = 10.0 * center_width * np.pi + 2.0 * unit_length
     if length_without_qubit_end < couple_end_length:
-        warnings.warn("Invalid length of readout resonator, because it less than coupled length!")
+        warnings.warn(
+            "Invalid length of readout resonator, because it less than coupled length!"
+        )
     else:
         # 绘制了太多的s unit可能导致读取腔过长，而难以布线
         if length_without_qubit_end > max_s_unit_count * s_unit_length + couple_end_length:
-            warnings.warn("The length of readout resonator is too long, please change the unit length")
+            warnings.warn(
+                "The length of readout resonator is too long, please change the unit length"
+            )
         while length_without_qubit_end - path.length > s_unit_length:
             path.turn(5.0 * center_width, "rr")
             path.segment(unit_length, "-x")
             path.turn(5.0 * center_width, "ll")
             path.segment(unit_length, "+x")
         if length_without_qubit_end - path.length < 10.0 * center_width * np.pi:
-            warnings.warn("The length of readout resonator is not suitable, please change the unit length.")
+            warnings.warn(
+                "The length of readout resonator is not suitable, please change the unit length."
+            )
         else:
             delta_length = path.length + s_unit_length - length_without_qubit_end
             path.turn(5.0 * center_width, "rr")
@@ -102,18 +113,23 @@ def get_squid(direction: Direction,
     :return: 带“钩子”SQUID的Polygon对象列表
     """
     if direction not in [Direction.UP, Direction.DOWN]:
-        warnings.warn("Invalid direction %s, reset to %s" % (direction, Direction.UP))
+        warnings.warn("Invalid direction %s, reset to %s" %
+                      (direction, Direction.UP))
         direction = Direction.UP
     if squid_pad_size[0] < 4.0 or squid_pad_size[1] < 2.0:
-        warnings.warn("The pads of JJs are too small, which may cause some problems!")
+        warnings.warn(
+            "The pads of JJs are too small, which may cause some problems!")
         print("Resetting to default size (%.2f, %.2f)" % (6, 8))
     if base_length < squid_pad_size[1]:
-        warn_str = "Base length is too short (less than %.2fum), which may cause some problems!" % squid_pad_size[1]
+        warn_str = "Base length is too short (less than %.2fum), which may cause some problems!" % squid_pad_size[
+            1]
         warnings.warn(warn_str)
-    if xy_distance[0] < 2.0 * squid_pad_size[0] or xy_distance[1] < squid_pad_size[1]:
+    if xy_distance[0] < 2.0 * squid_pad_size[0] or xy_distance[
+            1] < squid_pad_size[1]:
         warn_str = "The pads of JJs are too closed (%.2f, %.2f), " % xy_distance + "under (%.2f, %.2f)" % squid_pad_size
         warnings.warn(warn_str)
-        print("Resetting to default distance (%.2f, %.2f)" % (3.0 * squid_pad_size[0], squid_pad_size[1]))
+        print("Resetting to default distance (%.2f, %.2f)" %
+              (3.0 * squid_pad_size[0], squid_pad_size[1]))
         xy_distance = (3.0 * squid_pad_size[0], squid_pad_size[1])
     dx, dy = xy_distance
     px, py = squid_pad_size
@@ -129,12 +145,16 @@ def get_squid(direction: Direction,
     squid_v_line_length = dy - py + 2
     squid_h_line_length = 0.5 * dx - px + 2
     squid_v_line_list = [
-        gdspy.Rectangle((0, 0), (squid_size[0], squid_v_line_length), layer=squid_layer),
-        gdspy.Rectangle((0, 0), (squid_size[0], squid_v_line_length), layer=squid_layer)
+        gdspy.Rectangle((0, 0), (squid_size[0], squid_v_line_length),
+                        layer=squid_layer),
+        gdspy.Rectangle((0, 0), (squid_size[0], squid_v_line_length),
+                        layer=squid_layer)
     ]
     squid_h_line_list = [
-        gdspy.Rectangle((0, 0), (squid_h_line_length, squid_size[1]), layer=squid_layer),
-        gdspy.Rectangle((0, 0), (squid_h_line_length, squid_size[1]), layer=squid_layer)
+        gdspy.Rectangle((0, 0), (squid_h_line_length, squid_size[1]),
+                        layer=squid_layer),
+        gdspy.Rectangle((0, 0), (squid_h_line_length, squid_size[1]),
+                        layer=squid_layer)
     ]
     if direction == Direction.UP:
         squid_v_line_list[0].translate(px - 1 - squid_size[0], py)
@@ -143,14 +163,22 @@ def get_squid(direction: Direction,
         squid_h_line_list[1].translate(0.5 * dx + px, dy + 1)
     elif direction == Direction.DOWN:
         squid_v_line_list[0].translate(0.5 * dx + 1, py - 2)
-        squid_v_line_list[1].translate(0.5 * dx + px - 1 - squid_size[0], py - 2)
+        squid_v_line_list[1].translate(0.5 * dx + px - 1 - squid_size[0],
+                                       py - 2)
         squid_h_line_list[0].translate(px, py - 1 - squid_size[1])
-        squid_h_line_list[1].translate(0.5 * dx + px - 2, py - 1 - squid_size[1])
+        squid_h_line_list[1].translate(0.5 * dx + px - 2,
+                                       py - 1 - squid_size[1])
     squid_with_base_list += squid_pad_list + squid_v_line_list + squid_h_line_list
     # 绘制底部的钩子
-    base_list = [gdspy.Curve(0, 0).l(4.0 + 0.0j, 4.0 - base_length * 1.0j, 2.0 - base_length * 1.0j, 2.0 - 2.0j, 0.0 - 2.0j)
-                 ] * 3
-    base_list = [gdspy.Polygon(base.get_points(), layer=base_layer).translate(1, py - 1) for base in base_list]
+    base_list = [
+        gdspy.Curve(0, 0).l(4.0 + 0.0j, 4.0 - base_length * 1.0j,
+                            2.0 - base_length * 1.0j, 2.0 - 2.0j, 0.0 - 2.0j)
+    ] * 3
+    base_list = [
+        gdspy.Polygon(base.get_points(),
+                      layer=base_layer).translate(1, py - 1)
+        for base in base_list
+    ]
     base_list[1].mirror((0.5 * (dx + px), 0), (0.5 * (dx + px), 1))
     base_list[2].rotate(np.pi, center=(0.25 * dx + 0.5 * px, 0.5 * (dy + py)))
 
@@ -203,7 +231,10 @@ def get_hex_qubit(r: float,
     # 绘制中心导体
     r_point = (r - s) / np.sqrt(3) + r * 1.0j
     s_point = (r + s / 2) / np.sqrt(3) + (r - s / 2) * 1.0j
-    qubit_points = np.array([np.array([r_point, s_point]) * np.exp(-n * 1.0j * np.pi / 3) for n in range(6)]).flatten()
+    qubit_points = np.array([
+        np.array([r_point, s_point]) * np.exp(-n * 1.0j * np.pi / 3)
+        for n in range(6)
+    ]).flatten()
     qubit_points = [(p.real, p.imag) for p in qubit_points]
     hex_qubit = gdspy.Polygon(points=qubit_points, layer=layer)
     gds_list.append(hex_qubit)
@@ -216,10 +247,13 @@ def get_hex_qubit(r: float,
     pad_list = [
         gdspy.Polygon(pad_curve.get_points(), layer=layer),
         gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(np.pi / 3),
-        gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(2 * np.pi / 3),
+        gdspy.Polygon(pad_curve.get_points(),
+                      layer=layer).rotate(2 * np.pi / 3),
         gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(np.pi),
-        gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(4 * np.pi / 3),
-        gdspy.Polygon(pad_curve.get_points(), layer=layer).rotate(5 * np.pi / 3)
+        gdspy.Polygon(pad_curve.get_points(),
+                      layer=layer).rotate(4 * np.pi / 3),
+        gdspy.Polygon(pad_curve.get_points(),
+                      layer=layer).rotate(5 * np.pi / 3)
     ]
     p_r_u = (-wp / 2, r + gr + d + lp)
     p_l_d = (wp / 2, r + gr + d)
@@ -233,7 +267,10 @@ def get_hex_qubit(r: float,
     ]
     edge_p1 = -wp / 2 + (r + gr + d + lp) * 1.0j
     edge_p2 = edge_p1 + wp
-    edge_points = np.array([np.array([edge_p1, edge_p2]) * np.exp(-n * 1.0j * np.pi / 3) for n in range(6)]).flatten()
+    edge_points = np.array([
+        np.array([edge_p1, edge_p2]) * np.exp(-n * 1.0j * np.pi / 3)
+        for n in range(6)
+    ]).flatten()
     edge_points = [(p.real, p.imag) for p in edge_points]
     gds = gdspy.Polygon(edge_points, layer=layer)
     gds_list += pad_list
@@ -258,6 +295,39 @@ def get_hex_qubit(r: float,
     for i in range(len(gds_list)):
         gds_list[i] = gds_list[i].translate(anchor[0], anchor[1])
     return gds_list if inverse else [gds]
+
+
+def pic2gds(pic_name: str,
+            thresh: int,
+            is_flip: bool = False) -> list[gdspy.Rectangle]:
+    """pic2gds 图片转gds版图
+
+    Args:
+        pic_name (str): 图片文件名
+        thresh (int): 图片灰度截断阈值
+        inverse (bool, optional): 版图文件反相 Defaults to False.
+
+    Returns:
+        list[gdspy.Rectangle]: 版图
+    """
+    path = os.path.split(os.path.realpath(__file__))[0] + "\\"  # 获取当前py文件所在的目录
+    img = Image.open(path + pic_name)
+    # 图片灰度化
+    img = img.convert("L")
+    # 图片二值化
+    img_arr = np.array(img)
+    img_arr = np.where((img_arr <= thresh), img_arr, 255)
+    img_arr = np.where((img_arr > thresh), img_arr, 0)
+    # gds xy坐标与图片xy坐标手性相反 需要翻转
+    img_arr = np.flip(img_arr, 0)
+    gds_list = []
+    yl, xl = img_arr.shape
+    for j in range(yl):
+        for i in range(xl):
+            if img_arr[j, i] == (255 if is_flip else 0):
+                rect = gdspy.Rectangle((i, j), (i + 1, j + 1), layer=1)
+                gds_list.append(rect)
+    return gds_list
 
 
 if __name__ == '__main__':
