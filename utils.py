@@ -2,6 +2,7 @@ import warnings
 import numpy as np
 import gdspy
 import os
+import pyclipper as pp
 from enum import Enum
 from PIL import Image
 
@@ -330,6 +331,95 @@ def pic2gds(pic_name: str,
     return gds_list
 
 
+def size_shape(
+    polygons_pts: list[list[tuple[float, float]]],
+    margin: int,
+    cutting_limit: int = 20,
+) -> list[gdspy.Polygon | gdspy.PolygonSet]:
+    """高性能多边形扩张收缩运算
+    
+        gdspy 的布尔操作 比较消耗性能 (超过100会可感的降低速度)
+        
+        耗时较长可以考虑降低 cutting_limit 或者设定为0或负数来关闭布尔剪切
+
+    Parameters
+    ----------
+    polygons_pts : list[list[tuple[float, float]]]
+        版图文件中的多边形点集列表
+    margin : int
+        收缩扩张量（正数表示扩张，负数表示收缩）
+    cutting_limit : int, optional
+        最大布尔剪切数 by default 20
+        
+        版图布尔剪切
+        
+        用于去除操作中可能出现的多边形内部的空洞产生的多余的多边形
+        
+        例如 圆环版图扩张或收缩操作后会出现两个圆形多边形而非原本的圆环
+        
+        这是因为 pyclipper 会改变图形原本的拓扑结构
+    
+    Returns
+    -------
+    list[gdspy.Polygon | gdspy.PolygonSet]
+        完成运算之后的多边形列表
+    """
+    # pyclipper 库的运算基于整数进行，这里为了保证版图精度，进行一定程度的缩放
+    SCALE_FACTOR = 1000
+    polygons = []
+    # 遍历版图文件中的全部多边形 分别进行扩张（收缩）运算
+    print("margin start")
+    progress_max = len(polygons_pts)
+    step = 1 / progress_max
+    rate = 0
+    for polygon_pts in polygons_pts:
+        rate += step
+        gds_list = []
+        pco = pp.PyclipperOffset()
+        pco.MiterLimit = 10  # 角落处的扩张截断 设置过小可能出现圆角，设置过大可能导致过于尖锐的“刺”
+        polygon_pts = pp.scale_to_clipper(polygon_pts, SCALE_FACTOR)
+        pco.AddPath(polygon_pts, pp.JT_MITER, pp.ET_CLOSEDPOLYGON)
+        s = pco.Execute(margin * SCALE_FACTOR)
+        # 转换多边形点集为gds版图中的多边形
+        for pts in s:
+            pts = pp.scale_from_clipper(pts, SCALE_FACTOR)
+            gds_list.append(gdspy.Polygon(pts))
+        gds = gds_list[0]
+        # 布尔剪切 处理多边形内部的空洞问题
+        num = len(gds_list)
+        os.system("cls")
+        progress_str = "#" * int(rate * 50) + "-" * int((1 - rate) * 50)
+        print(progress_str + f" {int(rate*100)}%")
+        if 1 < num and num < cutting_limit:
+            print(f"cutting {num}")
+            gds_list = gds_list[1:]
+            for p in gds_list:
+                gds = gdspy.boolean(gds, p, "not")
+        polygons.append(gds)
+    rate += step
+    os.system("cls")
+    progress_str = "#" * int(rate * 50) + "-" * int((1 - rate) * 50)
+    print(progress_str + f" {int(rate*100)}%")
+    print("complete")
+    return polygons
+
+
+def size_shape_from_file(
+    input_file: str,
+    output_file: str,
+    margin: int,
+    cutting_limit: int = 20,
+):
+    path = os.path.split(os.path.realpath(__file__))[0] + "\\"  # 获取当前py文件所在的目录
+    lib1 = gdspy.GdsLibrary(infile=path + input_file)
+    top = lib1.top_level()[0]
+    polygons_pts = top.get_polygons()
+    lib2 = gdspy.GdsLibrary()
+    cell = lib2.new_cell("TOP")
+    cell.add(size_shape(polygons_pts, margin, cutting_limit))
+    lib2.write_gds(path + output_file)
+
+
 if __name__ == '__main__':
     # demo and test
     lib = gdspy.GdsLibrary()
@@ -348,3 +438,14 @@ if __name__ == '__main__':
         .add(get_hex_qubit(4, 1, 0.5, 0.5, 2, 2, 4, 1, 5, 0.5))\
         .add(get_hex_qubit(4, 1, 0.5, 0.5, 2, 2, 4, 1, 5, 0.5,anchor=(30,0),inverse=True))
     gdspy.LayoutViewer(lib)
+    # size shape demo
+    input_file = "3.GDS"
+    output_file = "3s.GDS"
+    lib1 = gdspy.GdsLibrary(infile=input_file)
+    top = lib1.top_level()[0]
+    polygons_pts = top.get_polygons()
+    lib2 = gdspy.GdsLibrary("Demo")
+    cell = lib2.new_cell("TOP")
+    cell.add(size_shape(polygons_pts, 40))
+    gdspy.LayoutViewer(lib2)
+    # lib2.write_gds(output_file)
