@@ -39,7 +39,14 @@ gdspy.LayoutViewer(lib)
 
 + `gdspy`
 + `numpy`
++ `pyclipper`
 
+For pip
 ```commandline
-pip install gdspy numpy
+pip install gdspy numpy pyclipper
+```
+
+For conda
+```commandline
+conda install gdspy numpy pyclipper
 ```
