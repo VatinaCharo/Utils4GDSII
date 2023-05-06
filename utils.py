@@ -334,6 +334,7 @@ def pic2gds(pic_name: str,
 def size_shape(
     polygons_pts: list[list[tuple[float, float]]],
     margin: int,
+    layer: int = 4,
     cutting_limit: int = 20,
 ) -> list[gdspy.Polygon | gdspy.PolygonSet]:
     """高性能多边形扩张收缩运算
@@ -348,6 +349,8 @@ def size_shape(
         版图文件中的多边形点集列表
     margin : int
         收缩扩张量（正数表示扩张，负数表示收缩）
+    layer : int, optional
+        图层 by dault 4
     cutting_limit : int, optional
         最大布尔剪切数 by default 20
         
@@ -383,7 +386,7 @@ def size_shape(
         # 转换多边形点集为gds版图中的多边形
         for pts in s:
             pts = pp.scale_from_clipper(pts, SCALE_FACTOR)
-            gds_list.append(gdspy.Polygon(pts))
+            gds_list.append(gdspy.Polygon(pts, layer))
         gds = gds_list[0]
         # 布尔剪切 处理多边形内部的空洞问题
         num = len(gds_list)
@@ -394,7 +397,7 @@ def size_shape(
             print(f"cutting {num}")
             gds_list = gds_list[1:]
             for p in gds_list:
-                gds = gdspy.boolean(gds, p, "not")
+                gds = gdspy.boolean(gds, p, "not", layer=layer)
         polygons.append(gds)
     rate += step
     os.system("cls")
