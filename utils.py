@@ -1,3 +1,15 @@
+'''
+Author: Eur3ka njuscimenphy@gmail.com
+Date: 2023-03-02 18:35:55
+LastEditors: Eur3ka njuscimenphy@gmail.com
+LastEditTime: 2023-05-06 16:31:15
+Description: 
+==========================================
+摸鱼写代码的物理人 Koria~
+佩拉小姐, 你的眼镜怎么又掉了？
+==========================================
+Copyright (c) 2023 by NJU/Eur3ka, All Rights Reserved. 
+'''
 import warnings
 import numpy as np
 import gdspy
